@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisi Mercato Turistico - Ospedaletti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Calm Harmony (Beige, Sage Green, Powder Blue, Light Gray) -->
+    <!-- Application Structure Plan: SPA con navigazione a Tab (schede) per un'analisi non lineare e focalizzata. L'utente (investitore) può saltare direttamente alla sezione di interesse. Le sezioni sono: 1. Dashboard (KPI chiave per decisione rapida), 2. Flussi (Domanda e Stagionalità), 3. Offerta (Concorrenza e Prezzi), 4. Opportunità (Calendario 2026 e Trend), 5. Strategia (Analisi per l'investitore e Piano d'Azione). Questa struttura è scelta per separare l'analisi dei dati (Flussi, Offerta) dalle conclusioni strategiche (Opportunità, Strategia), rendendo il report facile da "digerire" e orientato all'azione. -->
+    <!-- Visualization & Content Choices: -->
+    <!-- Report Info: Stagionalità presenze (Stima basata su dati Riviera e stagionalità prezzi Kayak). Goal: Mostrare picchi e valli. Viz: Grafico a Linea (Chart.js). Interaction: Tooltip al passaggio del mouse. Justification: Immediata comprensione dei mesi ad alta e bassa redditività. Library: Chart.js (Canvas). -->
+    <!-- Report Info: Provenienza Turisti (Dati Prov. Imperia 2024 + Stime estero). Goal: Identificare mercati chiave. Viz: Grafico a Ciambella (Doughnut, Chart.js). Interaction: Tooltip. Justification: Chiara visualizzazione delle quote di mercato (IT vs Estero, e regioni IT). Library: Chart.js (Canvas). -->
+    <!-- Report Info: Offerta Ricettiva (Stima extra-alberghiero vs alberghiero). Goal: Mostrare predominanza extra-alberghiera. Viz: Grafico a Barre (Chart.js). Interaction: Tooltip. Justification: Confronto diretto della concorrenza. Library: Chart.js (Canvas). -->
+    <!-- Report Info: Prezzi Medi per Tipologia (Stime basate su OTA/Kayak). Goal: Confrontare ADR (Average Daily Rate) per immobile. Viz: Grafico a Barre Orizzontali (Chart.js). Interaction: Tooltip. Justification: Aiuta l'investitore a scegliere la tipologia di immobile. Library: Chart.js (Canvas). -->
+    <!-- Report Info: Tasso Occupazione per Tipologia (Stime di settore). Goal: Confrontare potenziale di riempimento. Viz: Grafico a Barre Orizzontali (Chart.js). Interaction: Tooltip. Justification: Completa l'analisi dei prezzi per la stima del RevPAR. Library: Chart.js (Canvas). -->
+    <!-- Report Info: Calendario Opportunità 2026 (Festività IT + Eventi locali/vicini estrapolati). Goal: Identificare weekend e settimane ad alta domanda. Viz: Lista strutturata (HTML/Tailwind). Interaction: Nessuna (statico). Justification: Checklist pratica per la gestione tariffe 2026. Library: HTML/CSS. -->
+    <!-- Report Info: Analisi Strategica (SWOT, Target, Differenziazione). Goal: Fornire raccomandazioni azionabili. Viz: Blocchi di testo e liste (HTML/Tailwind). Interaction: Nessuna. Justification: Contenuto qualitativo fondamentale per l'investitore. Library: HTML/CSS. -->
+    <!-- Report Info: Piano d'Azione. Goal: Riassumere i 3-5 step chiave. Viz: Lista numerata (HTML/Tailwind). Interaction: Nessuna. Justification: Conclusione operativa. Library: HTML/CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f4; /* Calm Beige */
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button.active {
+            border-color: #3b82f6; /* Accent Blue */
+            color: #1e3a8a;
+        }
+        .tab-button:hover {
+            background-color: #eef2ff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+                max-height: 400px;
+            }
+        }
+        .kpi-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            border-left: 5px solid #60a5fa; /* Light Blue Accent */
+        }
+        .strategy-card {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+        }
+        .calendar-item {
+            border-left: 4px solid #facc15; /* Yellow accent for dates */
+            transition: transform 0.2s;
+        }
+        .calendar-item:hover {
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">Analisi Mercato Turistico: Ospedaletti</h1>
+            <p class="text-xl text-gray-600">Opportunità per Investitori Immobiliari (Affitti Brevi) - Analisi 2024/2025</p>
+        </header>
+
+        <nav class="bg-white rounded-lg shadow-sm mb-8 sticky top-4 z-10">
+            <div class="flex flex-wrap justify-center border-b border-gray-200">
+                <button class="tab-button active text-sm md:text-base font-semibold py-4 px-6 text-gray-600" onclick="openTab(event, 'dashboard')">
+                    Dashboard
+                </button>
+                <button class="tab-button text-sm md:text-base font-semibold py-4 px-6 text-gray-600" onclick="openTab(event, 'flussi')">
+                    Flussi Turistici
+                </button>
+                <button class="tab-button text-sm md:text-base font-semibold py-4 px-6 text-gray-600" onclick="openTab(event, 'offerta')">
+                    Offerta e Prezzi
+                </button>
+                <button class="tab-button text-sm md:text-base font-semibold py-4 px-6 text-gray-600" onclick="openTab(event, 'opportunita')">
+                    Opportunità 2026
+                </button>
+                <button class="tab-button text-sm md:text-base font-semibold py-4 px-6 text-gray-600" onclick="openTab(event, 'strategia')">
+                    Strategia Investitore
+                </button>
+            </div>
+        </nav>
+
+        <main>
+            <!-- Sezione Dashboard -->
+            <div id="dashboard" class="tab-content active animated-fade-in">
+                <p class="text-lg text-gray-700 mb-6">Questa sezione fornisce una panoramica immediata dei Key Performance Indicators (KPI) stimati per il mercato degli affitti brevi a Ospedaletti. Questi dati sono essenziali per una valutazione rapida del potenziale di investimento prima di approfondire l'analisi.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="kpi-card">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Occupazione Media Annua</h3>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">55% <span class="text-lg font-normal">(Stima)</span></p>
+                        <p class="text-gray-600 mt-1">Picchi >90% (Lug-Ago), Minimi <30% (Nov-Gen).</p>
+                    </div>
+                    <div class="kpi-card border-l-blue-500">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">ADR Medio (Trilocale)</h3>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">€130 <span class="text-lg font-normal">/notte</span></p>
+                        <p class="text-gray-600 mt-1">Forte variazione stagionale (da €85 a €180+).</p>
+                    </div>
+                    <div class="kpi-card border-l-green-500">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Target Profittevole</h3>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">Coppie & Famiglie</p>
+                        <p class="text-gray-600 mt-1">Alto-spendenti, mercati IT (Nord) e EU (FR, DE).</p>
+                    </div>
+                    <div class="kpi-card border-l-yellow-500">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Potenziale Modello</h3>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">Property Mgmt</p>
+                        <p class="text-gray-600 mt-1">Ideale per ingresso rapido e gestione premium.</p>
+                    </div>
+                </div>
+                
+                <div class="mt-12 strategy-card">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Sintesi per l'Investitore</h2>
+                    <p class="text-gray-700 leading-relaxed">Ospedaletti rappresenta una nicchia di mercato ad alto potenziale nella Riviera dei Fiori, caratterizzata da una forte domanda internazionale (attratta dal clima e dalla vicinanza alla Costa Azzurra) e nazionale (Piemonte, Lombardia). A differenza delle vicine Sanremo o Bordighera, Ospedaletti offre maggiore tranquillità, un fattore sempre più ricercato dal target "slow" e dalle famiglie.</p>
+                    <p class="text-gray-700 leading-relaxed mt-3">L'offerta alberghiera è quasi inesistente, creando un'opportunità chiara per il settore extra-alberghiero di qualità. Il successo dell'investimento dipende da tre fattori chiave: <strong class="font-semibold">posizione</strong> (vista mare o vicinanza ciclabile), <strong class="font-semibold">qualità dell'immobile</strong> (ristrutturato, con parcheggio) e <strong class="font-semibold">gestione professionale</strong> (tariffe dinamiche, servizi premium).</p>
+                    <p class="text-gray-700 leading-relaxed mt-3">I modelli di investimento percorribili (subaffitto, gestione, acquisto) hanno profili di rischio/rendimento diversi. L'acquisto per messa a reddito, dati i prezzi immobiliari elevati (€4.100+/mq), richiede alta liquidità ma assicura una rivalutazione nel tempo. Il <strong class="font-semibold">Property Management</strong> (gestione c/terzi) è il modello d'ingresso più agile e profittevole a breve termine, focalizzandosi su immobili premium già presenti.</p>
+                </div>
+            </div>
+
+            <!-- Sezione Flussi Turistici -->
+            <div id="flussi" class="tab-content animated-fade-in">
+                <p class="text-lg text-gray-700 mb-6">Questa sezione analizza i dati quantitativi della domanda turistica. Comprendere la stagionalità e la provenienza dei visitatori è fondamentale per definire le strategie tariffarie, le campagne di marketing e la tipologia di servizi da offrire.</p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Stagionalità Stimata (Presenze Extra-Alberghiero)</h3>
+                        <p class="text-sm text-gray-600 mb-4">Il grafico illustra la fortissima stagionalità, con un picco concentrato in estate (Luglio-Agosto) e una "media stagione" interessante in primavera e inizio autunno, trainata dal clima mite e dagli eventi sportivi/culturali.</p>
+                        <div class="chart-container">
+                            <canvas id="stagionalitaChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Provenienza Turisti (Stima Prov. Imperia)</h3>
+                        <p class="text-sm text-gray-600 mb-4">Il mercato è diviso tra italiani (circa 65%) e stranieri (35%). I mercati italiani dominanti sono quelli di prossimità (Piemonte, Lombardia). Gli stranieri (principalmente Francia, Germania, Svizzera, Olanda) sono in crescita e hanno una capacità di spesa mediamente più alta.</p>
+                        <div class="chart-container" style="max-height: 300px; height: 300px;">
+                            <canvas id="provenienzaChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sezione Offerta e Prezzi -->
+            <div id="offerta" class="tab-content animated-fade-in">
+                <p class="text-lg text-gray-700 mb-6">L'analisi dell'offerta e dei prezzi dei competitor è cruciale per posizionare correttamente il proprio immobile. Questa sezione esamina la composizione del mercato ricettivo e le stime di prezzo e occupazione per le principali tipologie di affitto breve.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Offerta Ricettiva Stimata (Ospedaletti)</h3>
+                        <p class="text-sm text-gray-600 mb-4">Il mercato è dominato dal settore extra-alberghiero (AALL, LT, B&B), stimato in circa 250-300 unità attive. Le strutture alberghiere tradizionali sono pochissime (meno di 10), rendendo l'offerta di appartamenti turistici la scelta quasi obbligata per i visitatori.</p>
+                        <div class="chart-container">
+                            <canvas id="offertaChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Analisi Competitor (Punti Chiave)</h3>
+                        <ul class="space-y-4">
+                            <li>
+                                <strong class="font-semibold text-green-700">Punti di Forza (Media Mercato):</strong> Posizione (molti con vista mare), tranquillità della destinazione, vicinanza alla pista ciclabile.
+                            </li>
+                            <li>
+                                <strong class="font-semibold text-red-700">Punti di Debolezza (Criticità Comuni):</strong>
+                                <ul class="list-disc list-inside ml-4 mt-1 text-gray-600">
+                                    <li><strong class="text-red-600">Mancanza di parcheggio privato</strong> (criticità N.1).</li>
+                                    <li>Arredi spesso datati, stile "casa della nonna".</li>
+                                    <li>Scarsa digitalizzazione (check-in, comunicazioni).</li>
+                                    <li>Mancanza di servizi accessori (es. bici, teli mare).</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Prezzo Medio Stimato (ADR) per Tipologia</h3>
+                        <p class="text-sm text-gray-600 mb-4">I prezzi medi annui variano significativamente. Le Ville e i Quadrilocali hanno ADR più alti ma un'occupazione media più bassa, mentre Bilo e Trilo rappresentano il miglior equilibrio (dati medi annui).</p>
+                        <div class="chart-container" style="height: 350px; max-height: 400px;">
+                            <canvas id="prezziChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Occupazione Media Stimata per Tipologia</h3>
+                         <p class="text-sm text-gray-600 mb-4">Il trilocale (target famiglia/coppie) mostra il tasso di occupazione medio più alto, bilanciando spazi e costi. Le ville soffrono di più la bassa stagione, mentre i bilocali sono più costanti.</p>
+                       <div class="chart-container" style="height: 350px; max-height: 400px;">
+                            <canvas id="occupazioneChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sezione Opportunità 2026 -->
+            <div id="opportunita" class="tab-content animated-fade-in">
+                 <p class="text-lg text-gray-700 mb-6">Identificare i trend emergenti e le date chiave del prossimo anno (2026) è vitale per massimizzare l'occupazione e applicare strategie di prezzo dinamiche. Ospedaletti beneficia sia del turismo balneare che degli eventi della vicina Sanremo e del turismo "attivo".</p>
+                 
+                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div class="strategy-card">
+                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Calendario Opportunità 2026 (Festività & Eventi)</h3>
+                         <p class="text-sm text-gray-600 mb-4">Date chiave per ottimizzare le tariffe (Revenue Management). Le date degli eventi sono stimate e da confermare.</p>
+                         <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Gennaio:</strong> Capodanno (1-4 Gen), Epifania (6 Gen).
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Febbraio:</strong> <span class="font-bold text-red-600">Festival di Sanremo (Date TBC, altissima domanda)</span>.
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Marzo:</strong> <span class="font-bold text-blue-600">Milano-Sanremo (Data TBC, alta domanda)</span>.
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Aprile:</strong> <span class="font-bold text-green-600">Ponte di Pasqua (3-6 Apr 2026)</span>, Ponte 25 Aprile (25-26 Apr).
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Maggio:</strong> Ponte 1 Maggio (1-3 Mag), <span class="font-bold text-red-600">GP F1 Monaco (Date TBC, alta domanda)</span>.
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Giugno:</strong> Ponte 2 Giugno (30 Mag-2 Giu), Inizio stagione estiva.
+                            </div>
+                            <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Luglio-Agosto:</strong> <span class="font-bold text-red-600">Altissima Stagione</span>, Ferragosto (15 Ago), Eventi estivi locali.
+                            </div>
+                             <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Settembre:</strong> <span class="font-bold text-blue-600">Rievocazione Storica Ospedaletti (Date TBC)</span>, media stagione.
+                            </div>
+                             <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Ottobre:</strong> Media stagione, turisti "svernanti" (mercato estero).
+                            </div>
+                             <div class="calendar-item bg-white p-3 rounded-lg shadow-sm">
+                                <strong class="text-gray-800">Dicembre:</strong> Ponte 8 Dicembre (5-8 Dic), <span class="font-bold text-green-600">Vacanze di Natale (23 Dic - 6 Gen)</span>.
+                            </div>
+                         </div>
+                     </div>
+                     <div class="strategy-card">
+                         <h3 class="text-xl font-semibold text-gray-900 mb-4">Trend Emergenti da Sfruttare</h3>
+                         <ul class="space-y-4 text-gray-700">
+                             <li>
+                                <strong class="text-gray-900 block">1. Turismo "Slow" & Autentico:</strong> I turisti (specialmente tedeschi e nord-italiani) cercano località meno affollate. Ospedaletti è perfetta.
+                                <span class="text-sm block text-blue-600">Azione: Puntare su tranquillità e autenticità nel marketing.</span>
+                             </li>
+                             <li>
+                                <strong class="text-gray-900 block">2. Turismo Attivo (Pista Ciclabile):</strong> La Pista Ciclabile del Ponente Ligure è un attrattore potentissimo.
+                                 <span class="text-sm block text-blue-600">Azione: Offrire servizi dedicati (noleggio e-bike, deposito sicuro, kit riparazione).</span>
+                             </li>
+                             <li>
+                                <strong class="text-gray-900 block">3. Workation / Bleisure:</strong> Il clima mite attrae lavoratori da remoto, specialmente in media/bassa stagione.
+                                 <span class="text-sm block text-blue-600">Azione: Allestire postazione smart working (Wi-Fi fibra, scrivania, sedia ergonomica, monitor).</span>
+                             </li>
+                             <li>
+                                 <strong class="text-gray-900 block">4. Crescita Mercato Estero (USA, Nord Europa):</strong> Come visto nel mercato immobiliare, questi mercati sono in crescita, hanno alta capacità di spesa e cercano esperienze di qualità.
+                                 <span class="text-sm block text-blue-600">Azione: Annunci multilingua, standard elevati (pulizia, design), servizi premium.</span>
+                             </li>
+                         </ul>
+                     </div>
+                 </div>
+            </div>
+
+            <!-- Sezione Strategia Investitore -->
+            <div id="strategia" class="tab-content animated-fade-in">
+                <p class="text-lg text-gray-700 mb-6">Questa sezione finale traduce l'analisi dei dati in una strategia operativa per un investitore. Vengono definiti i modelli di business, il target, gli immobili ideali, i fattori differenzianti e i canali di acquisizione per massimizzare la redditività.</p>
+                
+                <div class="mb-8 strategy-card">
+                    <h3 class="text-2xl font-semibold text-gray-900 mb-4">Modello di Business e Strategia d'Ingresso</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <h4 class="font-bold text-lg text-blue-700">1. Property Management (Consigliato)</h4>
+                            <p class="text-sm text-gray-600 mt-1">Prendere in gestione immobili di pregio già arredati. <br><strong class="font-semibold">Pro:</strong> Ingresso rapido, basso capitale iniziale, focus su immobili premium. <br><strong class="font-semibold">Contro:</strong> Dipendenza dai proprietari, fee da dividere.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg text-green-700">2. Acquisto per Messa a Reddito</h4>
+                            <p class="text-sm text-gray-600 mt-1">Acquistare e ristrutturare (o arredare). <br><strong class="font-semibold">Pro:</strong> Controllo totale, 100% dei ricavi, rivalutazione immobile (mercato in crescita). <br><strong class="font-semibold">Contro:</strong> Alto capitale iniziale (prezzi >4.000€/mq), tempi lunghi.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg text-yellow-700">3. Affitto e Subaffitto (Rent-to-Rent)</h4>
+                            <p class="text-sm text-gray-600 mt-1">Affittare a lungo termine e subaffittare a breve. <br><strong class="font-semibold">Pro:</strong> Capitale iniziale medio. <br><strong class="font-semibold">Contro:</strong> Rischioso, mercato affitti residenziali teso, richiede permessi specifici.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Target Profittevole e Immobili Chiave</h3>
+                        
+                        <h4 class="font-semibold text-gray-800">Target da Colpire:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700 mb-4">
+                            <li><strong class="text-gray-900">Coppie Alto-Spendenti (35-60 anni):</strong> Mercati IT (Nord) e EU (FR, DE, CH, NL). Cercano design, comfort, tranquillità e servizi.</li>
+                            <li><strong class="text-gray-900">Famiglie (Media/Alta Stagione):</strong> Cercano spazi (Trilocali), sicurezza, cucina attrezzata e vicinanza ai servizi/spiaggia.</li>
+                            <li><strong class="text-gray-900">Turisti Attivi / Svernanti (Bassa Stagione):</strong> Ciclisti (IT/EU) e pensionati (Nord Europa) che cercano clima mite. Sensibili al prezzo ma soggiornano più a lungo.</li>
+                        </ul>
+
+                        <h4 class="font-semibold text-gray-800">Immobili su cui Puntare:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-gray-700">
+                            <li><strong class="text-gray-900">Trilocale (60-80mq):</strong> L'asset più versatile. Ideale per famiglie e coppie che desiderano spazio (es. per smart working).</li>
+                            <li><strong class="text-gray-900">Bilocale di Lusso (45-55mq):</strong> Perfetto per il target coppie. Deve avere finiture di altissimo livello.</li>
+                            <li><strong class="text-gray-900">Requisiti NON negoziabili:</strong> Vista Mare, Terrazzo/Balcone vivibile, <strong class="text-red-600 font-bold">Parcheggio</strong> (privato o convenzionato).</li>
+                        </ul>
+                    </div>
+
+                    <div class="strategy-card">
+                        <h3 class="text-xl font-semibold text-gray-900 mb-4">Punti Differenzianti per Emergere</h3>
+                        <p class="text-sm text-gray-600 mb-4">Per giustificare prezzi premium e ottenere recensioni a 5 stelle, è necessario superare lo standard di mercato (spesso datato).</p>
+                        <ul class="list-disc list-inside space-y-2 text-gray-700">
+                            <li><strong class="text-gray-900">Design & Comfort:</strong> Arredo moderno ("Ligure Contemporaneo", non "casa della nonna"), letti e divani di alta qualità, climatizzazione.</li>
+                            <li><strong class="text-gray-900">Tecnologia:</strong> Self Check-in (tastierino/smart lock), Wi-Fi Fibra (essenziale per workation), Smart TV (Netflix incluso).</li>
+                            <li><strong class="text-gray-900">Servizi "Esperienziali":</strong>
+                                <ul class="list-decimal list-inside ml-4 mt-1 text-sm">
+                                    <li>Convenzione per noleggio E-Bike (consegna a domicilio).</li>
+                                    <li>Welcome Pack con prodotti locali (Focaccia, Vermentino).</li>
+                                    <li>"Beach Kit" (teli mare, borsa frigo).</li>
+                                </ul>
+                            </li>
+                            <li><strong class="text-gray-900">Comunicazione Professionale:</strong> Guestbook digitale (consigli ristoranti, ecc.), messaggistica istantanea (WhatsApp Business).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-8 strategy-card">
+                    <h3 class="text-2xl font-semibold text-gray-900 mb-4">Piano d'Azione Pratico (3 Mosse Chiave)</h3>
+                    <ol class="list-decimal list-inside space-y-4 text-gray-700">
+                        <li class="text-lg">
+                            <strong class="font-semibold text-gray-900">Mossa 1: Acquisizione & Posizionamento Asset (Modello: Property Mgmt)</strong>
+                            <p class="text-base font-normal mt-1">Focalizzarsi sulla ricerca (tramite agenti immobiliari locali) di 2-3 trilocali o bilocali di proprietari (spesso stranieri o residenti al Nord) che NON utilizzano l'immobile. Proporre un contratto di gestione "premium" (Full Service), garantendo manutenzione e alta redditività. L'immobile DEVE avere parcheggio e terrazzo.</p>
+                        </li>
+                        <li class="text-lg">
+                            <strong class="font-semibold text-gray-900">Mossa 2: Allestimento "Premium" e Creazione Annuncio</strong>
+                            <p class="text-base font-normal mt-1">Investire (o far investire al proprietario) in un allestimento differenziante: re-styling leggero (interior design), setup tecnologico (Wi-Fi, self check-in) e shooting fotografico/video professionale. Creare annunci ottimizzati (SEO, multilingua) sulle OTA principali (Booking, Airbnb).</p>
+                        </li>
+                        <li class="text-lg">
+                            <strong class="font-semibold text-gray-900">Mossa 3: Lancio con Gestione Tariffe Dinamiche e Servizi</strong>
+                            <p class="text-base font-normal mt-1">Implementare da subito un software di gestione prezzi (es. PriceLabs) per sfruttare le date del "Calendario Opportunità 2026" (Sanremo, Pasqua, GP Monaco). Attivare i servizi accessori (convenzione bici, welcome pack) e focalizzarsi ossessivamente sulle prime 5-10 recensioni a 5 stelle per costruire la reputazione online.</p>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let chartInstances = {};
+
+        function openTab(event, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+                tabcontent[i].classList.remove("active");
+            }
+            tablinks = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+            document.getElementById(tabName).style.display = "block";
+            document.getElementById(tabName).classList.add("active");
+            event.currentTarget.classList.add("active");
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            if (tabName === 'flussi') {
+                renderStagionalitaChart();
+                renderProvenienzaChart();
+            }
+            if (tabName === 'offerta') {
+                renderOffertaChart();
+                renderPrezziChart();
+                renderOccupazioneChart();
+            }
+        }
+
+        function destroyChart(chartId) {
+            if (chartInstances[chartId]) {
+                chartInstances[chartId].destroy();
+                delete chartInstances[chartId];
+            }
+        }
+        
+        function renderStagionalitaChart() {
+            destroyChart('stagionalitaChart');
+            const ctx = document.getElementById('stagionalitaChart').getContext('2d');
+            chartInstances['stagionalitaChart'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
+                    datasets: [{
+                        label: 'Occupazione Stimata (%)',
+                        data: [25, 30, 40, 55, 65, 80, 95, 98, 75, 60, 30, 35],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderProvenienzaChart() {
+            destroyChart('provenienzaChart');
+            const ctx = document.getElementById('provenienzaChart').getContext('2d');
+            chartInstances['provenienzaChart'] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Piemonte', 'Lombardia', 'Stranieri (FR, DE, CH)', 'Altra Italia'],
+                    datasets: [{
+                        label: 'Provenienza Turisti',
+                        data: [23.4, 21.4, 35, 20.2],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderOffertaChart() {
+            destroyChart('offertaChart');
+            const ctx = document.getElementById('offertaChart').getContext('2d');
+            chartInstances['offertaChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Extra-Alberghiero (AALL, B&B)', 'Alberghiero (Hotel)'],
+                    datasets: [{
+                        label: 'Numero Strutture Stimate',
+                        data: [270, 8],
+                        backgroundColor: ['#3b82f6', '#ef4444'],
+                        maxBarThickness: 60,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderPrezziChart() {
+            destroyChart('prezziChart');
+            const ctx = document.getElementById('prezziChart').getContext('2d');
+            chartInstances['prezziChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Bilocale', 'Trilocale', 'Quadrilocale', 'Villa'],
+                    datasets: [{
+                        label: 'ADR Medio Annuo Stimato (€)',
+                        data: [90, 130, 170, 250],
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                        maxBarThickness: 40,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '€' + value;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': €' + context.parsed.x;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+         function renderOccupazioneChart() {
+            destroyChart('occupazioneChart');
+            const ctx = document.getElementById('occupazioneChart').getContext('2d');
+            chartInstances['occupazioneChart'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Bilocale', 'Trilocale', 'Quadrilocale', 'Villa'],
+                    datasets: [{
+                        label: 'Occupazione Media Annua Stimata (%)',
+                        data: [58, 60, 50, 45],
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
+                        maxBarThickness: 40,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                         tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.x + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            openTab({ currentTarget: document.querySelector('.tab-button.active') }, 'dashboard');
+        });
+    </script>
+</body>
+</html>
